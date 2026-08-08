@@ -1,0 +1,109 @@
+@import "tailwindcss";
+
+@theme {
+  --color-ink-50: #f6f7f8;
+  --color-ink-100: #eceef1;
+  --color-ink-200: #d7dbe1;
+  --color-ink-300: #b3bac6;
+  --color-ink-400: #8590a1;
+  --color-ink-500: #667186;
+  --color-ink-600: #51596b;
+  --color-ink-700: #424857;
+  --color-ink-800: #393e4a;
+  --color-ink-900: #24272f;
+  --color-ink-950: #16181d;
+
+  --color-brand-50: #eefbf6;
+  --color-brand-100: #d5f5e8;
+  --color-brand-200: #aeead4;
+  --color-brand-300: #79d7ba;
+  --color-brand-400: #43bd9b;
+  --color-brand-500: #1fa182;
+  --color-brand-600: #128169;
+  --color-brand-700: #106756;
+  --color-brand-800: #105246;
+  --color-brand-900: #0f443b;
+}
+
+:root {
+  --surface: #ffffff;
+  --surface-sunken: #f6f7f8;
+  --surface-raised: #ffffff;
+  --border: #e3e6eb;
+  --text: #24272f;
+  --text-muted: #667186;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --surface: #16181d;
+    --surface-sunken: #101115;
+    --surface-raised: #1d2027;
+    --border: #2c313b;
+    --text: #eceef1;
+    --text-muted: #8590a1;
+  }
+}
+
+html {
+  color-scheme: light dark;
+}
+
+body {
+  background: var(--surface-sunken);
+  color: var(--text);
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+@utility surface {
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+}
+
+@utility muted {
+  color: var(--text-muted);
+}
+
+@utility hairline {
+  border-color: var(--border);
+}
+
+/* Rendered markdown (tailored CV preview) */
+.prose-cv {
+  line-height: 1.6;
+}
+.prose-cv h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0 0 0.25rem;
+}
+.prose-cv h2 {
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin: 1.5rem 0 0.5rem;
+  padding-bottom: 0.25rem;
+  border-bottom: 1px solid var(--border);
+}
+.prose-cv h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 1rem 0 0.125rem;
+}
+.prose-cv p {
+  margin: 0.5rem 0;
+}
+.prose-cv ul {
+  margin: 0.5rem 0;
+  padding-left: 1.15rem;
+  list-style: disc;
+}
+.prose-cv li {
+  margin: 0.25rem 0;
+}
+.prose-cv strong {
+  font-weight: 600;
+}
