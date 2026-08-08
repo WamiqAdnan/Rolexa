@@ -1,0 +1,220 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+/// One uploaded CV file. The original is never modified — tailored output
+/// always lands in a new CvVersion.
+model Cv {
+  id          String   @id @default(cuid())
+  name        String // renameable, e.g. "Data Analyst CV"
+  fileName    String
+  storedPath  String
+  mimeType    String
+  sizeBytes   Int
+  uploadedAt  DateTime @default(now())
+  targetRole  String?
+  industry    String?
+
+  /// PENDING | PARSING | EXTRACTING | READY | FAILED
+  status      String   @default("PENDING")
+  error       String?
+
+  parsedText  String?
+  /// JSON-serialised CvExtraction
+  extraction  String?
+  /// "claude" | "rules"
+  extractedBy String?
+
+  versions CvVersion[]
+  sources  AttributeSource[]
+
+  @@index([uploadedAt])
+}
+
+/// Every generated CV is a version. ORIGINAL is created at upload time and
+/// never overwritten.
+model CvVersion {
+  id        String   @id @default(cuid())
+  cvId      String
+  cv        Cv       @relation(fields: [cvId], references: [id], onDelete: Cascade)
+  label     String
+  /// ORIGINAL | TAILORED
+  kind      String   @default("TAILORED")
+  createdAt DateTime @default(now())
+  /// Markdown body of this version
+  content   String
+  jobId     String?
+  job       Job?     @relation(fields: [jobId], references: [id], onDelete: SetNull)
+  /// JSON { changesMade: string[], notAdded: string[], warnings: string[] }
+  changes   String?
+  generator String? // "claude" | "rules"
+
+  @@index([cvId])
+}
+
+model Job {
+  id          String   @id @default(cuid())
+  title       String
+  company     String?
+  location    String?
+  source      String?
+  description String
+  createdAt   DateTime @default(now())
+
+  /// MANUAL when pasted in, otherwise the provider id that first supplied it.
+  origin   String    @default("MANUAL")
+  url      String?
+  salary   String?
+  remote   Boolean   @default(false)
+  postedAt DateTime?
+
+  /// Normalised company + title. Not unique: two genuinely different roles can
+  /// share it, so a candidate must also pass a location or description check
+  /// before it is merged. See lib/job-dedupe.ts.
+  dedupeKey String?
+
+  savedSearchId String?
+  savedSearch   SavedSearch? @relation(fields: [savedSearchId], references: [id], onDelete: SetNull)
+
+  /// PENDING | ANALYZING | READY | FAILED
+  status String  @default("PENDING")
+  error  String?
+
+  /// JSON-serialised JobAnalysis
+  analysis          String?
+  professionalMatch Int?
+  /// How well the recommended CV communicates the fit — i.e. that CV's own score.
+  cvMatch           Int?
+  recommendedCvId   String?
+  /// Denormalised so the list can name the CV to send without parsing analysis.
+  recommendedCvName String?
+  analyzedBy        String?
+
+  /// Where you are with this one, as opposed to `status` which is processing.
+  /// NEW | SHORTLISTED | APPLIED | INTERVIEWING | OFFER | REJECTED | DISCARDED
+  applicationStatus String    @default("NEW")
+  appliedAt         DateTime?
+  /// The CvVersion actually sent, when you record an application.
+  appliedVersionId  String?
+  notes             String?
+
+  versions CvVersion[]
+  sources  JobSource[]
+
+  @@index([createdAt])
+  @@index([dedupeKey])
+  @@index([applicationStatus])
+}
+
+/// One portal's copy of a job. Several rows under one Job means the same advert
+/// was found on several portals; each keeps that portal's own wording and link.
+model JobSource {
+  id           String    @id @default(cuid())
+  jobId        String
+  job          Job       @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  /// Provider id: adzuna | jsearch | remotive | remoteok | weworkremotely
+  provider     String
+  /// Display name. For aggregators this is the underlying board where known,
+  /// e.g. "LinkedIn (via JSearch)".
+  providerName String
+  externalId   String?
+  url          String?
+  /// Exactly as that portal worded it, before normalisation.
+  title        String
+  company      String?
+  location     String?
+  salary       String?
+  postedAt     DateTime?
+  firstSeenAt  DateTime  @default(now())
+  lastSeenAt   DateTime  @updatedAt
+
+  @@unique([provider, externalId])
+  @@index([jobId])
+}
+
+/// A stored query, re-run against every enabled source when you hit Refresh.
+model SavedSearch {
+  id         String   @id @default(cuid())
+  name       String
+  /// Free text or a boolean string — /search can hand one straight over.
+  keywords   String
+  location   String?
+  remoteOnly Boolean  @default(false)
+  /// JSON string[] of provider ids. Null or empty means every available one.
+  providers  String?
+  /// Drop fetched jobs whose Professional Match falls below this.
+  minMatch   Int?
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+
+  lastRunAt   DateTime?
+  lastAdded   Int?
+  lastSeen    Int?
+  lastError   String?
+
+  jobs Job[]
+}
+
+/// One fact in the Master Professional Profile, aggregated across CVs.
+model Attribute {
+  id       String  @id @default(cuid())
+  /// PERSONAL | EXPERIENCE | ROLE | COMPANY | INDUSTRY | SKILL | EDUCATION
+  /// | CERTIFICATION | PROJECT | ACHIEVEMENT | LANGUAGE | LICENCE | AWARD
+  /// | PUBLICATION | EXPERIENCE_YEARS | TARGET_ROLE | TARGET_INDUSTRY
+  category String
+  /// Skill grouping: CORE | TECHNICAL | TOOL | INDUSTRY | MANAGEMENT | SOFT
+  group    String?
+  /// Canonical key, unique within a category
+  key      String
+  label    String
+  /// JSON payload (merged entry data, scalar value, etc.)
+  data     String?
+
+  /// CONFIRMED | NEEDS_REVIEW | CONFLICTING — computed from evidence
+  confidence String
+  /// JSON string[] of conflicting distinct values, when confidence=CONFLICTING
+  variants   String?
+
+  /// User overrides, preserved across rebuilds
+  userStatus    String? // CONFIRMED | REJECTED
+  resolvedValue String?
+  resolvedAt    DateTime?
+  userNote      String?
+
+  updatedAt DateTime @updatedAt
+
+  sources AttributeSource[]
+
+  @@unique([category, key])
+  @@index([category])
+}
+
+/// Evidence: which CV a master-profile attribute came from, and how it was
+/// worded there.
+model AttributeSource {
+  id          String    @id @default(cuid())
+  attributeId String
+  attribute   Attribute @relation(fields: [attributeId], references: [id], onDelete: Cascade)
+  cvId        String
+  cv          Cv        @relation(fields: [cvId], references: [id], onDelete: Cascade)
+  /// Exactly as written in that CV (before normalisation)
+  rawLabel    String
+  /// Short supporting quote from the CV, when available
+  snippet     String?
+  /// JSON payload of the per-CV version of this fact
+  data        String?
+
+  @@unique([attributeId, cvId])
+  @@index([cvId])
+}
+
+/// Single-row key/value store for profile-level metadata (last rebuild, etc).
+model Meta {
+  key   String @id
+  value String
+}
