@@ -22,18 +22,32 @@ Then open <http://localhost:3000>.
 `npm run setup` generates the Prisma client and creates `prisma/dev.db`. Uploaded files live in
 `uploads/`; both are gitignored, so the library stays on your machine.
 
-### Optional: add a Claude API key
+### Optional: add a model
+
+CV extraction, job-requirement reading and CV tailoring read better with a model behind them.
+Rolexa takes either of two, and works without both.
 
 ```bash
-# .env
+# .env — Claude, if you have a key
 ANTHROPIC_API_KEY=sk-ant-...
 ```
 
-With a key, CV extraction, job-requirement reading and CV tailoring use Claude (`claude-opus-5`
-by default; override with `ANTHROPIC_MODEL`). Without one, Rolexa falls back to deterministic
-parsers — everything still works end to end, extraction is just less accurate on unusual
-layouts and tailoring is limited to re-ordering rather than re-wording. Each CV shows which
-path produced it, and **Re-extract** re-runs a CV after you add a key.
+`claude-opus-5` by default; override with `ANTHROPIC_MODEL`.
+
+```bash
+# .env — or a local model, no key and no network
+OLLAMA_MODEL=qwen3:8b
+```
+
+Needs [Ollama](https://ollama.com) running (`ollama serve`) with the model pulled
+(`ollama pull qwen3:8b`). Point `OLLAMA_HOST` elsewhere if it isn't on `localhost:11434`.
+Generation is minutes rather than seconds and the results are weaker than Claude's, but the
+whole pipeline runs offline.
+
+A key wins when both are set. With neither, Rolexa falls back to deterministic parsers —
+everything still works end to end, extraction is just less accurate on unusual layouts and
+tailoring is limited to re-ordering rather than re-wording. Each CV shows which path produced
+it, and **Re-extract** re-runs a CV after you configure one.
 
 ---
 
@@ -159,8 +173,8 @@ automatically. A `minMatch` on a saved search files anything below that score un
 rather than deleting it, so it isn't re-fetched and re-scored on the next refresh.
 
 Refresh scores at most 25 new jobs per run; the rest stay queued and can be analysed from their
-own page. With an API key each score is a Claude call, so the cap is there to stop a wide search
-quietly costing money.
+own page. With a model configured each score is a model call, so the cap is there to stop a wide
+search quietly costing money — or, on a local model, quietly costing an afternoon.
 
 ### 6. Job matching
 
@@ -252,7 +266,8 @@ src/lib/
   job-match.ts             Requirement extraction, scoring, gap analysis
   tailor.ts                Tailoring + fabrication audit
   pipeline.ts              Background processing
-  anthropic.ts             Claude client (structured outputs, streaming)
+  anthropic.ts             Claude client + provider choice (structured, streaming)
+  ollama.ts                Local-model provider behind the same contract
 src/app/                   Pages and API routes
 ```
 
