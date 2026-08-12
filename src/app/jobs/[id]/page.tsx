@@ -18,7 +18,12 @@ import {
   StatusPill,
 } from "@/components/ui";
 import { json, prisma } from "@/lib/db";
-import type { GapBucket, JobAnalysis, RequirementMatch } from "@/lib/types";
+import {
+  generatorLabel,
+  type GapBucket,
+  type JobAnalysis,
+  type RequirementMatch,
+} from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -69,8 +74,7 @@ export default async function JobDetailPage({
               {job.remote ? <Pill tone="blue">Remote</Pill> : null}
               {analysis ? (
                 <span className="muted text-xs">
-                  requirements read by{" "}
-                  {analysis.analyzedBy === "claude" ? "Claude" : "the built-in reader"}
+                  requirements read by {generatorLabel(analysis.analyzedBy)}
                 </span>
               ) : null}
             </div>

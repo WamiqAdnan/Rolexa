@@ -1,12 +1,17 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { OLLAMA_MODEL, ollamaStructured, OllamaUnavailableError } from "./ollama";
 
 /**
- * Thin wrapper over the Anthropic SDK.
+ * Thin wrapper over the Anthropic SDK, and the one place a provider is chosen.
  *
- * Everything Rolexa asks Claude for is structured, so every call here goes
+ * Everything Rolexa asks a model for is structured, so every call here goes
  * through `output_config.format` with a JSON schema and comes back as a parsed
  * object. Calls stream and use `.finalMessage()` so a long extraction can't hit
  * an HTTP timeout.
+ *
+ * A local model can serve the same contract — see `ollama.ts` — so `structured`
+ * dispatches on `provider()`. Callers record `modelTag()` next to whatever they
+ * generated, because "which model wrote this" is user-visible information.
  */
 
 export const MODEL = process.env.ANTHROPIC_MODEL || "claude-opus-5";
@@ -17,8 +22,31 @@ const FALLBACK_BETA = "server-side-fallback-2026-07-01";
 
 let client: Anthropic | null = null;
 
-export function hasApiKey(): boolean {
-  return Boolean(process.env.ANTHROPIC_API_KEY);
+export type Provider = "claude" | "ollama" | "none";
+
+/**
+ * Claude wins when a key is present; a configured local model is the fallback.
+ * With neither, every caller uses its deterministic path instead.
+ */
+export function provider(): Provider {
+  if (process.env.ANTHROPIC_API_KEY) return "claude";
+  if (OLLAMA_MODEL) return "ollama";
+  return "none";
+}
+
+/** Is any model available, or is this a rules-only run? */
+export function hasModel(): boolean {
+  return provider() !== "none";
+}
+
+/** Stored alongside generated data so the UI can say what produced it. */
+export function modelTag(): "claude" | "ollama" {
+  return provider() === "claude" ? "claude" : "ollama";
+}
+
+/** Human-readable identity of the model in use, for the overview page. */
+export function modelName(): string {
+  return provider() === "claude" ? MODEL : OLLAMA_MODEL;
 }
 
 function getClient(): Anthropic {
@@ -69,8 +97,11 @@ export async function structured<T>({
   maxTokens = 32000,
   effort = "medium",
 }: StructuredCall): Promise<T> {
-  if (!hasApiKey()) {
-    throw new ClaudeUnavailableError("ANTHROPIC_API_KEY is not set");
+  if (provider() === "none") {
+    throw new ClaudeUnavailableError("No model is configured (ANTHROPIC_API_KEY or OLLAMA_MODEL)");
+  }
+  if (provider() === "ollama") {
+    return ollamaStructured<T>({ system, user, schema, maxTokens });
   }
 
   const message = await runWithFallbacks({ system, user, schema, maxTokens, effort });
@@ -153,6 +184,7 @@ async function runWithFallbacks(call: Required<StructuredCall>): Promise<Outcome
 export function describeClaudeError(err: unknown): string {
   if (err instanceof ClaudeRefusalError) return err.message;
   if (err instanceof ClaudeUnavailableError) return err.message;
+  if (err instanceof OllamaUnavailableError) return err.message;
   if (err instanceof Anthropic.AuthenticationError) {
     return "ANTHROPIC_API_KEY was rejected. Check the key in .env.";
   }

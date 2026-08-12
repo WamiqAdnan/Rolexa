@@ -1,23 +1,23 @@
-import { hasApiKey, structured } from "../anthropic";
+import { hasModel, modelTag, structured } from "../anthropic";
 import type { CvExtraction } from "../types";
 import { extractWithRules } from "./rules";
 import { CV_EXTRACTION_SCHEMA, CV_EXTRACTION_SYSTEM } from "./schema";
 
 export type ExtractionResult = {
   extraction: CvExtraction;
-  extractedBy: "claude" | "rules";
+  extractedBy: "claude" | "ollama" | "rules";
   note?: string;
 };
 
 /**
  * Extract structured information from one CV's plain text.
  *
- * Uses Claude when a key is configured, and falls back to the deterministic
- * parser otherwise — or if the API call fails, so an upload is never lost to a
+ * Uses whichever model is configured, and falls back to the deterministic
+ * parser otherwise — or if the call fails, so an upload is never lost to a
  * transient error.
  */
 export async function extractCv(text: string): Promise<ExtractionResult> {
-  if (!hasApiKey()) {
+  if (!hasModel()) {
     return { extraction: extractWithRules(text), extractedBy: "rules" };
   }
 
@@ -29,13 +29,13 @@ export async function extractCv(text: string): Promise<ExtractionResult> {
       maxTokens: 32000,
       effort: "medium",
     });
-    return { extraction: verify(coerce(raw), text), extractedBy: "claude" };
+    return { extraction: verify(coerce(raw), text), extractedBy: modelTag() };
   } catch (err) {
     const note = err instanceof Error ? err.message : String(err);
     return {
       extraction: extractWithRules(text),
       extractedBy: "rules",
-      note: `Claude extraction failed (${note}); used the built-in parser instead.`,
+      note: `Model extraction failed (${note}); used the built-in parser instead.`,
     };
   }
 }

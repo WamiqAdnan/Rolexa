@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 import { Card, ConfidenceBadge, Empty, Pill, SectionTitle } from "@/components/ui";
-import { hasApiKey, MODEL } from "@/lib/anthropic";
+import { hasModel, modelName, provider } from "@/lib/anthropic";
 import { prisma } from "@/lib/db";
 import { loadMasterProfile } from "@/lib/master-profile";
 
@@ -41,21 +41,22 @@ export default async function DashboardPage() {
         </p>
       </header>
 
-      {!hasApiKey() ? (
+      {!hasModel() ? (
         <Card className="border-amber-300 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950/40">
           <p className="text-sm font-medium text-amber-900 dark:text-amber-200">
             Running on the built-in parser
           </p>
           <p className="mt-1 text-sm text-amber-800 dark:text-amber-300">
-            No <code>ANTHROPIC_API_KEY</code> is set, so CV extraction, job-requirement reading and
-            CV tailoring use Rolexa&apos;s deterministic fallbacks. Everything works; extraction is
-            just less accurate on unusual layouts. Add a key to <code>.env</code>, restart, then use{" "}
-            <em>Re-extract</em> on each CV.
+            Neither <code>ANTHROPIC_API_KEY</code> nor <code>OLLAMA_MODEL</code> is set, so CV
+            extraction, job-requirement reading and CV tailoring use Rolexa&apos;s deterministic
+            fallbacks. Everything works; extraction is just less accurate on unusual layouts.
+            Configure one in <code>.env</code>, restart, then use <em>Re-extract</em> on each CV.
           </p>
         </Card>
       ) : (
         <p className="muted text-xs">
-          Extraction, matching and tailoring use <code>{MODEL}</code>.
+          Extraction, matching and tailoring use <code>{modelName()}</code>
+          {provider() === "ollama" ? " running locally" : null}.
         </p>
       )}
 

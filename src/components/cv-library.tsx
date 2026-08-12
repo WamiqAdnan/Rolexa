@@ -178,7 +178,7 @@ export function CvLibrary() {
                       </Link>
                       <StatusPill status={cv.status} />
                       {cv.extractedBy === "rules" && cv.status === "READY" ? (
-                        <Pill tone="neutral" title="Parsed without the Claude API. Add ANTHROPIC_API_KEY and re-extract for better results.">
+                        <Pill tone="neutral" title="Parsed without a model. Configure ANTHROPIC_API_KEY or OLLAMA_MODEL and re-extract for better results.">
                           built-in parser
                         </Pill>
                       ) : null}

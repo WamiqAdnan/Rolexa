@@ -240,3 +240,14 @@ export type TailorResult = {
   warnings: string[];
   generator: string;
 };
+
+/**
+ * How to name whatever produced a piece of data. Lives here rather than in
+ * `anthropic.ts` so client components can use it without pulling the SDK into
+ * the browser bundle.
+ */
+export function generatorLabel(tag: string | null | undefined): string {
+  if (tag === "claude") return "Claude";
+  if (tag === "ollama") return "a local model";
+  return "the built-in parser";
+}

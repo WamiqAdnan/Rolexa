@@ -1,4 +1,4 @@
-import { describeClaudeError, hasApiKey, structured } from "./anthropic";
+import { describeClaudeError, hasModel, modelTag, structured } from "./anthropic";
 import { TAILOR_SCHEMA, TAILOR_SYSTEM } from "./extract/schema";
 import type { CvForMatching } from "./job-match";
 import {
@@ -33,7 +33,7 @@ export async function tailorCv(opts: {
 }): Promise<TailorResult> {
   const { baseCv, allCvs, profile, analysis, job } = opts;
 
-  if (hasApiKey()) {
+  if (hasModel()) {
     try {
       const raw = await structured<{
         markdown: string;
@@ -56,13 +56,13 @@ export async function tailorCv(opts: {
             ? clean(raw.notAdded)
             : defaultNotAdded(analysis),
           warnings: auditFabrication(markdown, allCvs, profile),
-          generator: "claude",
+          generator: modelTag(),
         };
       }
     } catch (err) {
       const result = tailorWithRules(baseCv, profile, analysis, job);
       result.warnings.unshift(
-        `Claude tailoring failed (${describeClaudeError(err)}). This version was ` +
+        `Model tailoring failed (${describeClaudeError(err)}). This version was ` +
           `produced by the built-in re-ordering pass instead — it only re-arranges ` +
           `and re-labels content that already exists in your CVs.`,
       );

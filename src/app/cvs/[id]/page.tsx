@@ -6,7 +6,7 @@ import { Markdown } from "@/components/markdown";
 import { Card, Empty, Pill, SectionTitle, StatusPill } from "@/components/ui";
 import { json, prisma } from "@/lib/db";
 import { canonicalSkill } from "@/lib/normalize";
-import type { CvExtraction } from "@/lib/types";
+import { generatorLabel, type CvExtraction } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -40,7 +40,7 @@ export default async function CvDetailPage({
               <StatusPill status={cv.status} />
               {cv.extractedBy ? (
                 <Pill tone="neutral">
-                  extracted by {cv.extractedBy === "claude" ? "Claude" : "built-in parser"}
+                  extracted by {generatorLabel(cv.extractedBy)}
                 </Pill>
               ) : null}
               {cv.targetRole ? <Pill>🎯 {cv.targetRole}</Pill> : null}

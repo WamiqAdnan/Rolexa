@@ -1,4 +1,4 @@
-import { hasApiKey, structured } from "./anthropic";
+import { hasModel, modelTag, structured } from "./anthropic";
 import { JOB_REQUIREMENTS_SCHEMA, JOB_REQUIREMENTS_SYSTEM } from "./extract/schema";
 import {
   canonicalRole,
@@ -62,8 +62,8 @@ type RawRequirements = {
 
 export async function extractRequirements(
   job: JobInput,
-): Promise<{ requirements: JobRequirement[]; by: "claude" | "rules" }> {
-  if (hasApiKey()) {
+): Promise<{ requirements: JobRequirement[]; by: "claude" | "ollama" | "rules" }> {
+  if (hasModel()) {
     try {
       const raw = await structured<RawRequirements>({
         system: JOB_REQUIREMENTS_SYSTEM,
@@ -81,7 +81,7 @@ export async function extractRequirements(
           .filter((r) => r?.label?.trim())
           .map((r) => toRequirement(r.label, r.kind, r.importance, r.quote)),
       );
-      if (requirements.length) return { requirements, by: "claude" };
+      if (requirements.length) return { requirements, by: modelTag() };
     } catch {
       // fall through to the deterministic reader
     }
