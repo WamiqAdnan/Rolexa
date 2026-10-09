@@ -11,13 +11,20 @@
   registry.py since [SITE...]          -> per site: last run and the URL date filter covering the gap since;
                                           marks now as this run's start (pending until stamped)
   registry.py stamp SITE...            -> this run's start becomes the last run for those sites
-  registry.py log ROWS.tsv             -> appends applications: site, company, title, location, cv, mode, status, url, notes
-                                          (date is added; a url already logged is skipped)
+  registry.py log ROWS.tsv             -> adds applications to the tracker CSV. Input is tab-separated:
+                                          site, company, title, location, fit, cv, mode, status, url, notes
+                                          (date is added; a url already logged is skipped, unless its row was
+                                          not sent, e.g. 'handed back', and is now sent: then that row is updated)
+  registry.py update KEY STATUS [NOTE] -> changes one tracker row's status (interview, rejected, offer, ...).
+                                          KEY = row number, the job url, or words matching one company/title
+  registry.py insights [--days N]      -> quick numbers from the tracker: per site, CV, fit and mode; replies,
+                                          interviews, rows waiting 14+ days, jobs handed back
   registry.py today                    -> applications logged today, per site, against the daily cap
   registry.py check SITE               -> exit 0 if SITE is under today's cap, exit 1 if it has reached it.
                                           Run before every application; exit 1 means no more on that site today
 
-Data home: $ROLEXA_HOME or ~/.rolexa  (seen_jobs.tsv, last_run.tsv, applications.tsv, config.json)
+Data home: $ROLEXA_HOME or ~/.rolexa  (seen_jobs.tsv, last_run.tsv, config.json)
+Tracker: config 'tracker_csv' (the user picks it at setup), else ~/.rolexa/applications.csv
 Sites: linkedin, indeed, bayt, naukrigulf (aliases: li, naukri, ng)
 """
 import csv, datetime, json, math, os, re, sys
@@ -28,8 +35,8 @@ REG = HOME / "seen_jobs.tsv"
 HEADER = ["id", "first_seen", "company", "title", "verdict", "note"]
 STATE = HOME / "last_run.tsv"
 STATE_HEADER = ["site", "last_run", "pending_start", "note"]
-APPS = HOME / "applications.tsv"
-APPS_HEADER = ["date", "site", "company", "title", "location", "cv", "mode", "status", "url", "notes"]
+APPS_HEADER = ["date", "site", "company", "title", "location", "fit", "cv", "mode", "status", "url", "notes", "updated"]
+LOG_FIELDS = APPS_HEADER[1:11]  # what 'log' reads, in order: site ... notes
 SITES = ["linkedin", "indeed", "bayt", "naukrigulf"]
 ALIAS = {"li": "linkedin", "naukri": "naukrigulf", "naukari": "naukrigulf", "ng": "naukrigulf"}
 BUFFER = datetime.timedelta(hours=2)   # widens the search window for indexing lag
@@ -39,6 +46,10 @@ DEFAULT_CAP = 8
 # Statuses that mean nothing was sent. Every other status counts toward the cap, 'unconfirmed' included:
 # a submit with no confirmation page has most likely gone through.
 NOT_SENT = {"handed back", "skipped", "already applied", "not submitted"}
+WAITING = {"applied", "submitted by user", "unconfirmed"}          # sent, no news yet
+REPLIED = {"replied", "screening", "assessment", "interview", "offer", "rejected"}
+PROGRESSED = {"screening", "assessment", "interview", "offer"}
+STATUSES = sorted(NOT_SENT | WAITING | REPLIED | {"no response", "withdrawn"})
 
 
 def config():
@@ -234,13 +245,160 @@ def daily_cap():
         return DEFAULT_CAP
 
 
+def tracker():
+    p = config().get("tracker_csv")
+    return Path(os.path.expanduser(p)) if p else HOME / "applications.csv"
+
+
+def read_apps(path=None):
+    """(rows, header). The header keeps any columns the user added in a spreadsheet.
+    Exits if the file exists but isn't a tracker, so a user's own CSV is never overwritten."""
+    p = path or tracker()
+    if not p.exists() or not p.read_text(encoding="utf-8-sig").strip():
+        return [], list(APPS_HEADER)
+    with p.open(newline="", encoding="utf-8-sig") as f:
+        rd = csv.DictReader(f)
+        rows, head = list(rd), list(rd.fieldnames or [])
+    need = [h for h in APPS_HEADER if h not in head]
+    if [h for h in ("date", "site", "status", "url") if h not in head]:
+        sys.exit(f"{p} exists but isn't a Rolexa tracker (no {', '.join(need)} columns). "
+                 "Pick another file: rolexa.py set tracker_csv /path/to/file.csv")
+    return rows, head + need
+
+
+def write_apps(rows, head, path=None):
+    p = path or tracker()
+    p.parent.mkdir(parents=True, exist_ok=True)
+    with p.open("w", newline="", encoding="utf-8-sig") as f:  # BOM so Excel reads non-English names right
+        w = csv.DictWriter(f, fieldnames=head, extrasaction="ignore")
+        w.writeheader()
+        for r in rows:
+            w.writerow({k: r.get(k) or "" for k in head})
+
+
+DATE_FORMATS = ("%Y-%m-%d", "%Y/%m/%d", "%d/%m/%Y", "%m/%d/%Y", "%d-%m-%Y", "%d.%m.%Y")
+
+
+def days_of(text):
+    """Every date the text could mean. A spreadsheet may rewrite 2026-10-09 as 09/10/2026 or 10/9/2026,
+    so the daily cap counts a row as today if any reading of it is today."""
+    t = (text or "").strip().split(" ")[0].split("T")[0]
+    out = []
+    for fmt in DATE_FORMATS:
+        try:
+            out.append(datetime.datetime.strptime(t, fmt).date())
+        except ValueError:
+            pass
+    return out
+
+
+def date_order(rows):
+    """'dm' or 'md' when the file's slash dates show it (a first part over 12 means day first), else None.
+    A spreadsheet saves every date in the same locale format, so one clear row settles the rest."""
+    dm = md = 0
+    for r in rows:
+        m = re.fullmatch(r"(\d{1,2})[/.-](\d{1,2})[/.-]\d{4}", (r.get("date") or "").strip().split(" ")[0])
+        if m:
+            a, b = int(m.group(1)), int(m.group(2))
+            dm, md = dm + (a > 12), md + (b > 12)
+    return "dm" if dm > md else "md" if md > dm else None
+
+
+def day_of(text, order=None):
+    """One date for the text: ISO as is; slash dates in the file's order; if still unclear,
+    the latest reading that isn't in the future."""
+    d = days_of(text)
+    if len(d) < 2:
+        return d[0] if d else None
+    t = (text or "").strip().split(" ")[0]
+    if order and re.fullmatch(r"\d{1,2}[/.-]\d{1,2}[/.-]\d{4}", t):
+        a, b, y = map(int, re.split(r"[/.-]", t))
+        try:
+            return datetime.date(y, b, a) if order == "dm" else datetime.date(y, a, b)
+        except ValueError:
+            pass
+    past = [x for x in d if x <= datetime.date.today()]
+    return max(past) if past else min(d)
+
+
+def status_of(r):
+    return (r.get("status") or "").strip().lower()
+
+
 def today_counts(rows=None):
-    today = datetime.date.today().isoformat()
+    today = datetime.date.today()
     counts = {s: 0 for s in SITES}
-    for r in read_dicts(APPS) if rows is None else rows:
-        if r.get("date") == today and r.get("status", "").strip().lower() not in NOT_SENT:
+    for r in read_apps()[0] if rows is None else rows:
+        if today in days_of(r.get("date")) and status_of(r) not in NOT_SENT:
             counts[r.get("site", "")] = counts.get(r.get("site", ""), 0) + 1
     return counts
+
+
+def find_row(rows, key):
+    """Index of the row KEY points at: a 1-based row number, a url, or words found in one company + title."""
+    if key.isdigit() and 1 <= int(key) <= len(rows):
+        return int(key) - 1
+    hits = [i for i, r in enumerate(rows) if r.get("url") == key]
+    if not hits:
+        words = key.lower().split()
+        hits = [i for i, r in enumerate(rows)
+                if all(w in f"{r.get('company', '')} {r.get('title', '')}".lower() for w in words)]
+    if len(hits) == 1:
+        return hits[0]
+    if not hits:
+        sys.exit(f"no tracker row matches '{key}'")
+    lines = "\n".join(f"  {i + 1}\t{rows[i].get('date')}\t{rows[i].get('company')}\t{rows[i].get('title')}\t"
+                      f"{rows[i].get('status')}" for i in hits)
+    sys.exit(f"'{key}' matches {len(hits)} rows; use the row number:\n{lines}")
+
+
+def insights(rows, days=None):
+    today, order = datetime.date.today(), date_order(rows)
+
+    def when(r):
+        return day_of(r.get("date"), order) or today
+    if days:
+        rows = [r for r in rows if when(r) >= today - datetime.timedelta(days=days)]
+    sent = [r for r in rows if status_of(r) not in NOT_SENT]
+    if not rows:
+        return "The tracker is empty: nothing logged yet."
+    week = today - datetime.timedelta(days=today.weekday())
+    out = [f"Tracker: {tracker()}" + (f" (last {days} days)" if days else ""),
+           f"Sent: {len(sent)} · this week: {sum(1 for r in sent if when(r) >= week)}"
+           f" · today: {sum(1 for r in sent if today in days_of(r.get('date')))}"]
+    count = {}
+    for r in rows:
+        count[status_of(r) or "(blank)"] = count.get(status_of(r) or "(blank)", 0) + 1
+    out.append("By status: " + " · ".join(f"{k} {v}" for k, v in sorted(count.items(), key=lambda kv: -kv[1])))
+    replied = sum(1 for r in sent if status_of(r) in REPLIED)
+    prog = sum(1 for r in sent if status_of(r) in PROGRESSED)
+    if sent:
+        out.append(f"Replies: {replied}/{len(sent)} ({replied * 100 // len(sent)}%) · "
+                   f"past screening or further: {prog}/{len(sent)} ({prog * 100 // len(sent)}%)")
+    for col in ("site", "cv", "fit", "mode"):
+        groups = {}
+        for r in sent:
+            groups.setdefault((r.get(col) or "-").strip() or "-", []).append(r)
+        if len(groups) < 2 and col != "site":
+            continue
+        out.append(f"\nBy {col}:  sent · replied · interview+")
+        for g, rs in sorted(groups.items(), key=lambda kv: -len(kv[1])):
+            rep_, pro = sum(status_of(r) in REPLIED for r in rs), sum(status_of(r) in PROGRESSED for r in rs)
+            name = Path(g).name if col == "cv" else g
+            out.append(f"  {name[:30]:<30} {len(rs):>4} · {rep_:>3} · {pro:>3}"
+                       + (f"  ({pro * 100 // len(rs)}%)" if len(rs) >= 5 else ""))
+    stale = [r for r in sent if status_of(r) in WAITING
+             and when(r) <= today - datetime.timedelta(days=14)]
+    if stale:
+        out.append(f"\nNo news after 14+ days: {len(stale)} (follow up, or mark them 'no response')")
+        out += [f"  {r.get('date')} · {r.get('company')} · {r.get('title')}" for r in stale[:8]]
+        if len(stale) > 8:
+            out.append(f"  ... and {len(stale) - 8} more")
+    todo = [r for r in rows if status_of(r) == "handed back"]
+    if todo:
+        out.append(f"\nHanded back to you, not sent yet: {len(todo)}")
+        out += [f"  {r.get('company')} · {r.get('title')} · {r.get('url')}" for r in todo[:8]]
+    return "\n".join(out)
 
 
 def main():
@@ -309,20 +467,25 @@ def main():
             print(f"[registry] {site}: last run = {st[site]['last_run']}", file=sys.stderr)
         save_state(st)
     elif cmd == "log":
-        rows = read_dicts(APPS)
-        logged = {r.get("url") for r in rows}
-        added = 0
+        rows, head = read_apps()
+        at = {r.get("url"): r for r in rows if r.get("url")}
+        added = changed = 0
         for row in read_tsv(sys.argv[2]):
-            r = dict(zip(APPS_HEADER[1:], row + [""] * (len(APPS_HEADER) - 1 - len(row))))
+            r = dict(zip(LOG_FIELDS, row + [""] * (len(LOG_FIELDS) - len(row))))
             r["site"] = ALIAS.get(r["site"].lower(), r["site"].lower())
-            if r["url"] and r["url"] in logged:
-                print(f"[registry] already logged, skipped: {r['url']}", file=sys.stderr)
+            old = at.get(r["url"]) if r["url"] else None
+            if old and status_of(old) in NOT_SENT and r["status"].strip().lower() not in NOT_SENT:
+                old.update({k: v for k, v in r.items() if v}, date=today, updated=today)
+                changed += 1
                 continue
-            rows.append(dict(date=today, **r))
-            logged.add(r["url"])
+            if old:
+                print(f"[registry] already in the tracker, skipped: {r['url']}", file=sys.stderr)
+                continue
+            rows.append(dict(date=today, updated=today, **r))
+            at[r["url"]] = rows[-1]
             added += 1
-        write_dicts(APPS, APPS_HEADER, rows)
-        print(f"[registry] logged {added} -> {APPS}", file=sys.stderr)
+        write_apps(rows, head)
+        print(f"[registry] tracker: {added} added, {changed} updated -> {tracker()}", file=sys.stderr)
         cap = daily_cap()
         for site, n in today_counts(rows).items():
             if n > cap:  # logging never drops a record: it was sent, so it is kept, but this should not happen
@@ -331,6 +494,25 @@ def main():
         cap = daily_cap()
         for site, n in today_counts().items():
             print(f"{site}\t{n}/{cap}" + ("\tCAP REACHED" if n >= cap else ""))
+    elif cmd == "update":
+        if len(sys.argv) < 4:
+            sys.exit(f"usage: update KEY STATUS [NOTE]; statuses: {', '.join(STATUSES)}")
+        rows, head = read_apps()
+        i, status = find_row(rows, sys.argv[2]), sys.argv[3].strip().lower().replace("_", " ")
+        if status not in STATUSES:
+            print(f"[registry] note: '{status}' isn't a usual status ({', '.join(STATUSES)}); saved anyway",
+                  file=sys.stderr)
+        r = rows[i]
+        before = r.get("status")
+        note = " ".join(sys.argv[4:]).strip()
+        r.update(status=status, updated=today)
+        if note:
+            r["notes"] = f"{r.get('notes')}; {note}" if r.get("notes") else note
+        write_apps(rows, head)
+        print(f"row {i + 1}: {r.get('company')} · {r.get('title')}: {before} -> {status}")
+    elif cmd == "insights":
+        days = int(sys.argv[sys.argv.index("--days") + 1]) if "--days" in sys.argv else None
+        print(insights(read_apps()[0], days))
     elif cmd == "check":
         if len(sys.argv) < 3:
             sys.exit("check needs one site, e.g. 'check linkedin'")
