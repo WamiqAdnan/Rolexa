@@ -13,3 +13,5 @@ uploads/*
 next-env.d.ts
 tsconfig.tsbuildinfo
 .claude/settings.local.json
+__pycache__/
+*.pyc
