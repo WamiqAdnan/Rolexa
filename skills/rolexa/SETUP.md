@@ -19,7 +19,18 @@ Show this, then wait for a clear yes ("I understand", "yes", "ok"):
 - A no, or a question you can't settle: stop setup. Rolexa doesn't search or apply without it. Answer questions plainly; don't play the risk down.
 - An argument on the first run doesn't count as a yes; ask anyway.
 
-## 1. location
+## 1. tracker (application CSV)
+
+Ask: **"Do you want me to keep a CSV of every job you apply to, so you can see quick insights (replies per site, which CV gets interviews, what's waiting on a follow-up)?"** Offer to keep it in the folder you're running from (their repo), as `rolexa-applications.csv`, or at a path they name.
+
+- **Yes:** `rolexa.py set tracker_csv rolexa-applications.csv` (a relative path is taken from the current folder and saved as an absolute one), or their path.
+  - If the file already exists and isn't a Rolexa tracker, `registry.py` refuses to touch it: ask for another name.
+  - If the folder is a git repository, ask whether the CSV should be committed (fine for a private repo) or kept out of git (for a public one; it lists the companies they applied to). Out of git: add the file name to that repo's `.gitignore`.
+  - Mention it opens in Excel, Numbers or Google Sheets, and that they can add their own columns: Rolexa keeps them.
+- **No:** `rolexa.py set tracker_csv ~/.rolexa/applications.csv` (or the same file under `$ROLEXA_HOME` if that is set). Say that Rolexa still keeps this private copy, because the daily limit is counted from it, and that `/rolexa insights` works on it too.
+- `setup tracker` comes back here later. If they move the tracker, move the old file to the new path rather than starting an empty one.
+
+## 2. location
 
 Ask: **which country, and which city or cities?** ("anywhere in the country" is fine.)
 
@@ -27,7 +38,7 @@ Ask: **which country, and which city or cities?** ("anywhere in the country" is 
 - Save: `rolexa.py set location '{"country":"United Arab Emirates","cities":["Dubai"]}'` (the code is filled in automatically; `"cities": []` = whole country).
 - Ask whether remote roles based elsewhere are of interest. If yes, note it in `profile.md`; fit checks then don't mark remote roles down for location.
 
-## 2. profile (all resumes)
+## 3. profile (all resumes)
 
 Ask: **"Point me to every resume you've made so far: a folder or the files (.docx, .pdf, .txt). Older versions help too: they often hold roles, numbers and skills the latest one dropped."**
 
@@ -67,7 +78,7 @@ Built from: <files> on <date>. Newest resume wins. Rolexa answers forms only fro
 ## Learned answers  <!-- added during applications: question · answer · date -->
 ```
 
-## 3. roles (what to search for)
+## 4. roles (what to search for)
 
 From the profile, propose 3–8 **role families** with search keywords. Show them as a table and ask the user to add, drop or rename:
 
@@ -83,7 +94,7 @@ From the profile, propose 3–8 **role families** with search keywords. Show the
   - `level_skip`: levels that don't fit (`manager`, `director`, `head of`, `intern`, `internship`, `junior`), skipped **unless** the title also matches `level_keep` (`engineer`, `developer`), since some employers use "Manager" as a grade for hands-on roles.
 - Save: `rolexa.py set roles '[{"tag":"FE","name":"Frontend","keywords":[...],"slugs":[...]}]'`, then `set title_skip '[...]'`, `set level_skip '[...]'`, `set level_keep '[...]'`.
 
-## 4. cv (one CV or one per role)
+## 5. cv (one CV or one per role)
 
 Ask: **"Do you want a specialized CV for each role family, or one CV for everything?"**
 
@@ -92,11 +103,11 @@ Ask: **"Do you want a specialized CV for each role family, or one CV for everyth
   - A family with no matching CV: offer to draft one. Copy their closest CV and change **only** the headline, the summary and the order of skills to suit the family, using facts already in `profile.md`. Edit the text in place and keep the formatting (use a docx skill if one is installed). Show each draft; it is used only after the user approves it. Never add a skill, metric or claim.
 - Paths must be absolute and the files must exist (`status` checks). Prefer .pdf or .docx: both upload everywhere.
 
-## 5. sites
+## 6. sites
 
 Ask (multi-select) which platforms to use: **LinkedIn, Indeed, Bayt, Naukri Gulf**. Offer only the ones `rolexa.py countries` lists for their country, and say why any are missing (Bayt covers the Middle East and North Africa, Naukri Gulf covers only the six GCC countries; naukri.com for India is not supported). Save: `set sites '["linkedin","indeed"]'`.
 
-## 6. mode
+## 7. mode
 
 Ask: **"When you approve jobs from the shortlist, what should I do?"**
 
@@ -110,7 +121,7 @@ In every mode you choose the jobs from each shortlist; nothing is applied to wit
 
 For `assist` and `auto`, then ask about the **daily limit**: "I apply to at most 8 jobs per site per day, so the sites don't flag your account. Want it lower?" Fewer is safer; offer 3, 5 or 8. Save: `set daily_cap 5`. If they want more than 8, say once that a higher pace makes a restriction more likely, and save what they choose. In `list` mode skip the question: the default 8 applies if they apply through Rolexa later. `setup cap` returns here.
 
-## 7. checklist (what the user must set up, and up to what point)
+## 8. checklist (what the user must set up, and up to what point)
 
 Show this, cut to their mode and sites, then `set checklist_shown true`:
 
@@ -129,7 +140,7 @@ Show this, cut to their mode and sites, then `set checklist_shown true`:
 
 For `list` mode only the first row applies.
 
-## 8. finish
+## 9. finish
 
 1. `rolexa.py status` must say `ready`; fix anything it lists.
 2. Tell the user, briefly:
@@ -142,5 +153,6 @@ For `list` mode only the first row applies.
      - `/rolexa city:abu-dhabi save`: switch city for good
      - `/rolexa apply 2,4`: apply to jobs from the last list
      - `/rolexa setup cv`: redo one part of setup
+     - `/rolexa insights`: quick numbers from the tracker
      - `/rolexa help`: all arguments
 3. Ask whether to run the first search now.

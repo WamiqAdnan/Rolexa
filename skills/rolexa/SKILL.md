@@ -11,7 +11,7 @@ Finds jobs, checks fit against the user's own resumes, and applies only where th
 - **Phase A (find):** search logged out, fit-check, write a shortlist, show it, ask which to apply to.
 - **Phase B (apply):** only for jobs the user names **in this session** ("apply 1, 3"). A file, a saved preference or an earlier session's answer is not approval. In `list` mode, or with no answer, stop after Phase A.
 
-`$R` = this skill's folder. `$SCRATCH` = this session's scratchpad (or a temp folder). User data lives in `$ROLEXA_HOME` (default `~/.rolexa`): `config.json` (preferences), `profile.md` (facts, answers, the **Do NOT claim** list), `seen_jobs.tsv`, `last_run.tsv`, `applications.tsv`, `runs/`.
+`$R` = this skill's folder. `$SCRATCH` = this session's scratchpad (or a temp folder). User data lives in `$ROLEXA_HOME` (default `~/.rolexa`): `config.json` (preferences), `profile.md` (facts, answers, the **Do NOT claim** list), `seen_jobs.tsv`, `last_run.tsv`, `runs/`. The application tracker is a CSV wherever the user chose at setup (`tracker_csv`, often their own repo), else `~/.rolexa/applications.csv`.
 
 ## Start (every run)
 
@@ -20,6 +20,7 @@ Finds jobs, checks fit against the user's own resumes, and applies only where th
    - `ready` → go on.
 2. `python3 $R/scripts/rolexa.py resolve <the user's arguments, verbatim>` → JSON for this run.
    - `help` → print the cheat sheet below and stop. `show` → run `rolexa.py show`, print it, stop.
+   - `insights` → run `registry.py insights` (add `--days N` if they asked about a period), then give the 3–5 numbers that matter most and one suggestion each where the data supports it (e.g. "the Fintech CV gets replies, the generic one doesn't", "6 applications have waited 14+ days: follow up?"). Stop.
    - `setup` → SETUP.md for those sections (`"all"` = the whole interview), then ask whether to search now.
    - `unknown` or `conflicts` not empty → **ask, don't guess.** Quote the token and offer the likely fix (e.g. "Did you mean `city:dubai`?").
    - `notes` → pass each one on in a line (e.g. a site not available in that country, what was saved).
@@ -44,6 +45,7 @@ Order and case don't matter. Everything is **this run only** unless `save` is ad
 | When | `3d`, `48h`, `days:7` | Fixed window instead of "since last run" |
 | | `older` | Keep cards posted before the last run |
 | Apply | `apply 1,3`, `apply 2-5`, `apply high`, `apply` | Phase B on the latest shortlist (bare `apply` asks which) |
+| Tracker | `insights` (`stats`) | Quick numbers from the application CSV: replies per site, CV, fit and mode, follow-ups due |
 | Control | `save` | Keep sites / mode / location / CV strategy as the new defaults |
 | | `setup`, `setup cv`, `setup sites mode` | Redo the whole interview or named sections: `terms location profile roles cv sites mode checklist` (`cap` = the daily limit, asked with mode) |
 | | `prefs`, `help` | Show saved preferences / this table |
@@ -73,7 +75,7 @@ How combinations resolve (the script enforces these; the examples are for explai
 9. **Blocked page rule:** on a CAPTCHA, Cloudflare or "verify you are human" page (`extract_jd.js` returns `blocked: true`), HTTP 429, a sign-in wall, or empty pages repeating: stop that site at once. Don't click, wait it out or work around it. Carry on with the other sites and report it.
 10. `python3 $R/scripts/registry.py stamp <sites>` for each site that finished without a block and whose plan line says `stamp yes`, after the files are written. Never stamp a blocked or unfinished site.
 11. In chat: one line with each site's window, then **every job whose description was opened**, numbered in one sequence and grouped High / Medium / Low, one line each (role · company · fit · main gap · CV). Add one line counting card-only skips, and link the `.md` file.
-    - `list` mode: stop here. Mention that `/rolexa apply 2,5` (with `assist` or `auto`) works later from this list.
+    - `list` mode: stop here. Mention that `/rolexa apply 2,5` (with `assist` or `auto`) works later from this list, and that if they tell you which jobs they applied to themselves, you'll add them to the tracker (mode `manual`).
     - `assist` / `auto`: ask which to apply to ("apply 1, 3" or "apply high"). Say which CV each will get and whether Rolexa or the user will click Submit. Wait.
 
 ## Phase B: apply (the user's Chrome, logged in)
@@ -85,7 +87,14 @@ Follow [APPLY.md](APPLY.md). In short, one job at a time:
 - attach the CV from SITES.md §CV,
 - answer only from `profile.md`; **when unsure, ask; don't assume** (APPLY.md "Ask, don't assume"),
 - `assist`: stop on the final review page and ask the user to click Submit, then confirm it went through. `auto`: check the review page and submit,
-- log it with `registry.py log`; 2–4 s between form steps, 15–25 s between jobs.
+- log every outcome in the tracker with `registry.py log`, including jobs handed back; 2–4 s between form steps, 15–25 s between jobs.
+
+## Tracker
+
+`registry.py` owns the tracker CSV; never edit it by hand from the agent side (the user may, in a spreadsheet).
+- **Log:** each application or hand-back goes in with `registry.py log` (APPLY.md step 8). Jobs the user applied to on their own go in with mode `manual`, status `applied`, so they count toward the daily limit.
+- **Update:** when the user reports news ("Acme called me", "got rejected by Beta", "no reply from Gamma"), run `registry.py update "<company or title words>" <status> "<short note>"`. Statuses: `replied`, `screening`, `assessment`, `interview`, `offer`, `rejected`, `no response`, `withdrawn`. If the words match several rows, show them and ask which.
+- **Insights:** `/rolexa insights`, or when the user asks how their search is going.
 
 ## Never
 

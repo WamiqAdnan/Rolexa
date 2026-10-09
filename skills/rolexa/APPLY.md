@@ -12,8 +12,8 @@ Runs only for jobs the user named **in this session**, in their own Chrome via C
 ## For each job, one at a time
 
 1. **Daily cap:** `python3 $R/scripts/registry.py check <site>`, with the site the job was found on. Exit 1 means that site is done for today: skip its remaining jobs, tell the user, carry on with the other sites. Run it before **every** job, not once per run, so jobs logged meanwhile (by the user in `assist`, or another session) count. Never reorder, re-label or skip logging to get around it.
-2. Open the job URL in a new tab in the MCP tab group. If the page shows the user already applied ("Applied", "Application submitted"), skip it and note it.
-3. Sign-in page, register page, a company site that needs a new account, a password field, a CAPTCHA or "verify you are human": **stop this job and hand it to the user** with the link. A CAPTCHA or an "unusual activity" / restriction warning stops the **whole run**.
+2. Open the job URL in a new tab in the MCP tab group. If the page shows the user already applied ("Applied", "Application submitted"), skip it and log it as `already applied`.
+3. Sign-in page, register page, a company site that needs a new account, a password field, a CAPTCHA or "verify you are human": **stop this job and hand it to the user** with the link, and log it as `handed back` (the note says why) so it shows in the tracker as a to-do. A CAPTCHA or an "unusual activity" / restriction warning stops the **whole run**.
 4. Fill the form step by step, 2–4 s between steps:
    - contact fields: check them against `profile.md` "Contact"; fix any that differ,
    - CV: attach the job's CV from the shortlist (see "Uploading a CV"),
@@ -24,7 +24,7 @@ Runs only for jobs the user named **in this session**, in their own Chrome via C
 7. Submit, by mode:
    - **assist**: don't click Submit. Say: "Job N is filled and on the review page in Chrome: <role> at <company>, CV <file>. Check it and click Submit, then tell me 'done' (or 'skip')." Wait. On "done", look at the page for the confirmation ("Application sent", "Applied") and log status `submitted by user`. If no confirmation shows, say so and log `unconfirmed`. On "skip", log nothing.
    - **auto**: click Submit, wait for the confirmation, log status `applied`. No confirmation → screenshot, tell the user, log `unconfirmed`.
-8. Log: append `site, company, title, location, cv, mode, status, url, notes` (tab-separated) to `$SCRATCH/applied.tsv` and run `registry.py log $SCRATCH/applied.tsv` after each job (it skips URLs already logged).
+8. Log: write this job's line, tab-separated, `site, company, title, location, fit, cv, mode, status, url, notes`, to a fresh `$SCRATCH/applied.tsv` and run `registry.py log $SCRATCH/applied.tsv`. `fit` is the shortlist verdict (Strong, Good, ...); `notes` holds the work type and anything worth remembering (questions asked, salary given). The tracker skips a URL it already has, except a `handed back` row that is now sent, which it updates.
 9. Close the tab, wait 15–25 s, next job.
 
 At the end, add a short outcome table (job, status, CV, answers given) to the run's `.md` file.
@@ -86,9 +86,9 @@ These sites keep one CV on the profile and send that one.
 
 - 2–4 s between form steps, 15–25 s between jobs.
 - Daily cap per site: `daily_cap` in `config.json` (default 8), enforced by `registry.py check` before each job.
-  - Counted from today's rows in `applications.tsv` for that site. Every status counts except `handed back`, `skipped`, `already applied` and `not submitted`; `unconfirmed` counts, since a submit without a confirmation page has most likely gone through.
+  - Counted from today's rows in the tracker CSV for that site, including rows dated in a spreadsheet's own format. Every status counts except `handed back`, `skipped`, `already applied` and `not submitted`; `unconfirmed` counts, since a submit without a confirmation page has most likely gone through.
   - A company-site application counts against the site where the job was found.
-  - Applications the user makes outside Rolexa aren't in the log, so they don't count.
+  - Applications the user makes on their own count only once they're logged (mode `manual`): offer to log them when they mention one.
 - Stop the whole run on a CAPTCHA, a human-verification page, or an "unusual activity" or restriction warning, and tell the user.
 
 ## Chrome not connected

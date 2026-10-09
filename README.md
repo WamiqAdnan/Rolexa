@@ -253,8 +253,10 @@ resumes, and shows a High / Medium / Low shortlist. Then, only for the jobs you 
 applications in your signed-in Chrome: you click Submit (`assist`), it submits (`auto`), or it just
 gives you the links (`list`). It asks whenever a form needs something it doesn't know.
 
-It runs on its own, without the app. The first `/rolexa` asks for your country and city, your
-resumes, one CV or one per role, your platforms and the apply mode, and remembers them. After that,
+It runs on its own, without the app. The first `/rolexa` asks whether to track your applications
+in a CSV in your own folder (`/rolexa insights` then reports replies per site and per CV), your
+country and city, your resumes, one CV or one per role, your platforms and the apply mode, and
+remembers them. After that,
 arguments change a single run: `/rolexa linkedin list city:abu-dhabi 3d`.
 
 ```bash

@@ -23,12 +23,13 @@ A [Claude Code](https://claude.com/claude-code) skill, shipped alongside the Rol
 The first `/rolexa` asks you, once:
 
 0. to confirm the [disclaimer](#disclaimer) (job sites restrict automated use),
-1. the **country and city** (or cities) to search,
-2. **all your resumes so far** (a folder or files). It reads them to learn your experience quickly and builds a profile you can correct,
-3. **one CV for everything, or a specialized CV per role family** (frontend, backend, AI, ...). It can draft missing variants from your existing CV for your approval,
-4. which **platforms**: LinkedIn, Indeed, Bayt, Naukri Gulf (only those that cover your country),
-5. the **mode**: `list`, `assist` or `auto`,
-6. then shows you exactly **what you need to set up yourself, and from which point Rolexa takes over**.
+1. whether to **track your applications in a CSV** in your own folder or repo, for quick insights later,
+2. the **country and city** (or cities) to search,
+3. **all your resumes so far** (a folder or files). It reads them to learn your experience quickly and builds a profile you can correct,
+4. **one CV for everything, or a specialized CV per role family** (frontend, backend, AI, ...). It can draft missing variants from your existing CV for your approval,
+5. which **platforms**: LinkedIn, Indeed, Bayt, Naukri Gulf (only those that cover your country),
+6. the **mode**: `list`, `assist` or `auto`,
+7. then shows you exactly **what you need to set up yourself, and from which point Rolexa takes over**.
 
 Your answers are saved. After that, just run `/rolexa`.
 
@@ -59,6 +60,7 @@ Arguments change one run. Add `save` to make them your new defaults.
 | `/rolexa setup cap` | Change the daily limit per site (default 8) |
 | `/rolexa setup` | Redo the whole setup |
 | `/rolexa setup cv sites` | Redo only those parts (`location profile roles cv sites mode checklist`) |
+| `/rolexa insights` | Quick numbers from your application tracker |
 | `/rolexa prefs` | Show your saved preferences |
 | `/rolexa help` | Show all arguments |
 
@@ -70,9 +72,29 @@ Rules for combining them:
 
 ## Daily limit
 
-Rolexa applies to at most **8 jobs per site per day** (LinkedIn, Indeed, Bayt and Naukri Gulf each get 8). Before every application it checks today's count in your log, and once a site reaches its limit, that site's remaining jobs wait for tomorrow. Submissions without a confirmation page count too. Applications you make yourself outside Rolexa don't.
+Rolexa applies to at most **8 jobs per site per day** (LinkedIn, Indeed, Bayt and Naukri Gulf each get 8). Before every application it checks today's count in your log, and once a site reaches its limit, that site's remaining jobs wait for tomorrow. Submissions without a confirmation page count too. Applications you make yourself count once you tell Rolexa about them, so it can add them to the tracker.
 
 Setup asks whether you want a lower limit; `/rolexa setup cap` changes it later. There's no argument to raise it for one run.
+
+## Tracking your applications
+
+At the start of setup Rolexa asks whether to keep a CSV of your applications, by default `rolexa-applications.csv` in the folder you run it from. It logs every application, every job it handed back to you, and any you tell it you applied to yourself. Columns: date, site, company, title, location, fit, CV, mode, status, link, notes. Open it in Excel, Numbers or Google Sheets; add your own columns if you like, Rolexa keeps them.
+
+Tell it what happens next in plain words ("Acme invited me to an interview", "Beta rejected me") and it updates the row. Then `/rolexa insights` gives you a quick read:
+
+```
+Sent: 42 · this week: 9 · today: 3
+By status: applied 28 · interview 5 · rejected 6 · offer 1 · no response 2
+Replies: 12/42 (28%) · past screening or further: 6/42 (14%)
+
+By cv:  sent · replied · interview+
+  Fintech_Engineer.pdf             11 ·   5 ·   3  (27%)
+  Software_Engineer.pdf            19 ·   4 ·   1  (5%)
+
+No news after 14+ days: 7 (follow up, or mark them 'no response')
+```
+
+It also breaks the numbers down by site, fit and mode. If the folder is a public git repo, setup offers to keep the CSV out of git, since it lists the companies you applied to. If you say no to the tracker, Rolexa still keeps a private copy in `~/.rolexa/`, because the daily limit is counted from it.
 
 ## What you set up yourself
 
@@ -110,7 +132,7 @@ Everything stays on your machine in `~/.rolexa/` (set `ROLEXA_HOME` to move it):
 | `profile.md` | Your facts, built from your resumes: answers for forms and a **Do NOT claim** list |
 | `seen_jobs.tsv` | Every job already checked, so it isn't shown twice |
 | `last_run.tsv` | When each site was last searched |
-| `applications.tsv` | Your application log (import it into any spreadsheet) |
+| `applications.csv` | The tracker, only if you chose not to keep it in your own folder (see above) |
 | `runs/` | Each run's shortlist (`.md` to read, `.tsv` for applying later) |
 
 Rolexa only claims what your resumes and profile support. Anything in the Do NOT claim list is never used.

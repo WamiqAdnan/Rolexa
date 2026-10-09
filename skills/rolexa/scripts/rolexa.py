@@ -57,10 +57,11 @@ MODES = {"list": "list", "links": "list", "list-only": "list", "links-only": "li
 CV = {"single": "single", "single-cv": "single", "one-cv": "single", "same-cv": "single",
       "specialized": "specialized", "specialised": "specialized", "multi-cv": "specialized", "per-role": "specialized",
       "per-role-cv": "specialized", "tailored": "specialized"}
-SECTIONS = ["terms", "location", "profile", "roles", "cv", "sites", "mode", "checklist"]
+SECTIONS = ["terms", "tracker", "location", "profile", "roles", "cv", "sites", "mode", "checklist"]
 SECTION_ALIAS = {"resume": "profile", "resumes": "profile", "experience": "profile", "cvs": "cv", "platforms": "sites",
                  "city": "location", "country": "location", "apply-mode": "mode", "role": "roles", "targets": "roles",
-                 "cap": "mode", "limit": "mode", "daily-cap": "mode", "disclaimer": "terms", "tos": "terms"}
+                 "cap": "mode", "limit": "mode", "daily-cap": "mode", "disclaimer": "terms", "tos": "terms",
+                 "csv": "tracker", "tracking": "tracker"}
 GROUPS = {"high", "medium", "low", "all"}
 
 
@@ -96,6 +97,9 @@ def available(site, loc):
 
 def missing_sections(cfg):
     miss = [] if cfg.get("terms_accepted") else ["terms"]
+    t = cfg.get("tracker_csv")
+    if not t or not Path(os.path.expanduser(t)).parent.is_dir():
+        miss.append("tracker")
     loc = cfg.get("location") or {}
     if not loc.get("country"):
         miss.append("location")
@@ -166,6 +170,7 @@ def tokens(argv):
 def resolve(argv, cfg=None):
     cfg = load() if cfg is None else cfg
     r = dict(first_run=not cfg, missing=missing_sections(cfg), setup=None, show=False, help=False, save=False,
+             insights=False,
              apply=None, older=False, hours=None, unknown=[], conflicts=[], notes=[], overrides={})
     inc, exc, modes, cvs, role_q = [], [], [], [], []
     loc = dict(cfg.get("location") or {})
@@ -182,6 +187,8 @@ def resolve(argv, cfg=None):
                 secs.append(SECTION_ALIAS.get(toks[i].lower(), toks[i].lower()))
                 i += 1
             r["setup"] = secs or "all"
+        elif t in ("insights", "stats", "report", "progress"):
+            r["insights"] = True
         elif t in ("show", "prefs", "preferences", "settings", "config", "status"):
             r["show"] = True
         elif t in ("help", "?", "args", "usage", "--help", "-h"):
@@ -414,8 +421,9 @@ def show():
         print(f"  {x.get('tag')}: {x.get('name')} · {', '.join(x.get('keywords', []))} · cv {x.get('cv') or '(default)'}")
     for k in ("title_skip", "level_skip", "level_keep"):
         print(f"{k}: {', '.join(cfg.get(k) or []) or '-'}")
-    seen, apps = len(registry.load()), len(registry.read_dicts(registry.APPS))
-    print(f"\nseen jobs: {seen} · applications logged: {apps} · latest shortlist: {latest() or '-'}")
+    seen, apps = len(registry.load()), len(registry.read_apps()[0])
+    print(f"\ntracker: {registry.tracker()} ({apps} rows)")
+    print(f"seen jobs: {seen} · latest shortlist: {latest() or '-'}")
     miss = missing_sections(cfg)
     if miss:
         print(f"incomplete: {', '.join(miss)}")
@@ -444,6 +452,8 @@ def main():
         node = cfg
         for p in path[:-1]:
             node = node.setdefault(p, {})
+        if args[0] == "tracker_csv" and isinstance(val, str):
+            val = str(Path(os.path.expanduser(val)).resolve())  # relative = the folder the agent runs in
         node[path[-1]] = val
         loc = cfg.get("location")
         if path[0] == "location" and isinstance(loc, dict) and loc.get("country"):
