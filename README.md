@@ -261,6 +261,9 @@ arguments change a single run: `/rolexa linkedin list city:abu-dhabi 3d`.
 mkdir -p ~/.claude/skills && cp -r skills/rolexa ~/.claude/skills/rolexa
 ```
 
+Job sites restrict automated use, and using the skill may break their terms. Read the
+[disclaimer](skills/rolexa/README.md#disclaimer) first; setup asks you to confirm it.
+
 Setup, arguments and limits: [skills/rolexa/README.md](skills/rolexa/README.md).
 
 ---
@@ -310,3 +313,7 @@ skills/rolexa/             Claude Code skill: browser job hunt and applying (see
 - Deleting a saved search keeps the jobs it found — some of those are applications by then.
 - Refresh is manual. There's no scheduler: on a machine that sleeps, a cron job mostly teaches you
   that it didn't run. Point one at `POST /api/searches/refresh` if you want one.
+
+## License
+
+MIT. See [LICENSE](LICENSE).
