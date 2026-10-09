@@ -45,7 +45,7 @@ Order and case don't matter. Everything is **this run only** unless `save` is ad
 | | `older` | Keep cards posted before the last run |
 | Apply | `apply 1,3`, `apply 2-5`, `apply high`, `apply` | Phase B on the latest shortlist (bare `apply` asks which) |
 | Control | `save` | Keep sites / mode / location / CV strategy as the new defaults |
-| | `setup`, `setup cv`, `setup sites mode` | Redo the whole interview or named sections: `location profile roles cv sites mode checklist` (`cap` = the daily limit, asked with mode) |
+| | `setup`, `setup cv`, `setup sites mode` | Redo the whole interview or named sections: `terms location profile roles cv sites mode checklist` (`cap` = the daily limit, asked with mode) |
 | | `prefs`, `help` | Show saved preferences / this table |
 
 How combinations resolve (the script enforces these; the examples are for explaining them):

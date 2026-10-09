@@ -13,7 +13,7 @@ A [Claude Code](https://claude.com/claude-code) skill, shipped alongside the Rol
 3. **Shows a shortlist** grouped High / Medium / Low, numbered, with links. Nothing it has already shown you comes back.
 4. **Applies** only to the jobs you name ("apply 1, 3"), in your own signed-in Chrome, in the mode you chose:
    - `list`: you get the links and apply yourself,
-   - `assist`: Rolexa fills the form and attaches the right CV, **you click Submit**,
+   - `assist` (recommended): Rolexa fills the form and attaches the right CV, **you click Submit**,
    - `auto`: Rolexa submits the jobs you picked.
 
    In every mode it stops and **asks you** whenever a form needs something it doesn't know, rather than guessing.
@@ -22,6 +22,7 @@ A [Claude Code](https://claude.com/claude-code) skill, shipped alongside the Rol
 
 The first `/rolexa` asks you, once:
 
+0. to confirm the [disclaimer](#disclaimer) (job sites restrict automated use),
 1. the **country and city** (or cities) to search,
 2. **all your resumes so far** (a folder or files). It reads them to learn your experience quickly and builds a profile you can correct,
 3. **one CV for everything, or a specialized CV per role family** (frontend, backend, AI, ...). It can draft missing variants from your existing CV for your approval,
@@ -42,7 +43,7 @@ Arguments change one run. Add `save` to make them your new defaults.
 | `/rolexa linkedin indeed` | Those two only |
 | `/rolexa -bayt` | Saved sites except Bayt |
 | `/rolexa list` | Links only: you apply yourself |
-| `/rolexa assist` | Fill the forms; you click Submit |
+| `/rolexa assist` | Fill the forms; you click Submit (recommended) |
 | `/rolexa auto` | Submit the jobs you pick |
 | `/rolexa city:abu-dhabi` | Another city (in your saved country) |
 | `/rolexa city:dubai,sharjah` | Several cities |
@@ -120,7 +121,20 @@ Rolexa only claims what your resumes and profile support. Anything in the Do NOT
 - Bayt covers the Middle East and North Africa; Naukri Gulf covers the six GCC countries. naukri.com (India) is not supported.
 - Logged-out Indeed shows page 1 only, and logged-out LinkedIn ignores the remote / hybrid filter (Rolexa reads the work type from the description).
 - Job sites change their pages. If a script stops returning cards, the selectors in `scripts/collect_cards.js` and `scripts/extract_jd.js` need updating.
-- Automated browsing and applying may go against a site's terms of use, and sites can restrict accounts that act like bots. Rolexa keeps a slow, human pace, caps applications per site per day (default 8), stops at the first CAPTCHA or warning, and never touches your login. **That lowers the risk; it doesn't remove it.** Use it at your own discretion.
+
+## Disclaimer
+
+**Read this before using Rolexa. Setup asks you to confirm it.**
+
+- Rolexa is an independent project. It is not affiliated with, endorsed by or connected to LinkedIn, Indeed, Bayt or Naukri Gulf. Their names are trademarks of their owners.
+- **Job sites restrict automated use.** LinkedIn's User Agreement, for example, forbids using bots, scrapers or other automated means to access its service, and other sites have similar terms. Searching and applying with Rolexa may break those terms, and a site can restrict or close your account.
+- Rolexa keeps that risk down but can't make automated use permitted. It searches logged out, away from your accounts. It moves at a slow, human pace, caps applications per site per day, and stops at the first CAPTCHA or warning. It never signs in for you, and in `assist` mode (recommended) you click Submit yourself.
+- **You decide whether to use it, and you are responsible for following each site's terms** and for every application sent in your name. Check what Rolexa fills in before it goes out.
+- Rolexa is provided as is, without warranty of any kind (see [LICENSE](../../LICENSE)).
+
+## License
+
+MIT. See [LICENSE](../../LICENSE).
 
 ## Layout
 
