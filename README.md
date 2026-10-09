@@ -244,6 +244,27 @@ CV Library
 
 ---
 
+## Claude Code skill: `/rolexa`
+
+`skills/rolexa/` is a [Claude Code](https://claude.com/claude-code) skill that does the hunting
+and applying in a browser instead of through job-board APIs. It searches LinkedIn, Indeed, Bayt and
+Naukri Gulf logged out for jobs posted since its last run, checks each description against your own
+resumes, and shows a High / Medium / Low shortlist. Then, only for the jobs you pick, it fills the
+applications in your signed-in Chrome: you click Submit (`assist`), it submits (`auto`), or it just
+gives you the links (`list`). It asks whenever a form needs something it doesn't know.
+
+It runs on its own, without the app. The first `/rolexa` asks for your country and city, your
+resumes, one CV or one per role, your platforms and the apply mode, and remembers them. After that,
+arguments change a single run: `/rolexa linkedin list city:abu-dhabi 3d`.
+
+```bash
+mkdir -p ~/.claude/skills && cp -r skills/rolexa ~/.claude/skills/rolexa
+```
+
+Setup, arguments and limits: [skills/rolexa/README.md](skills/rolexa/README.md).
+
+---
+
 ## Project layout
 
 ```
@@ -269,6 +290,7 @@ src/lib/
   anthropic.ts             Claude client + provider choice (structured, streaming)
   ollama.ts                Local-model provider behind the same contract
 src/app/                   Pages and API routes
+skills/rolexa/             Claude Code skill: browser job hunt and applying (see its README)
 ```
 
 ## Scripts
