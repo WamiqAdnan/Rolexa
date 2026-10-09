@@ -57,10 +57,10 @@ MODES = {"list": "list", "links": "list", "list-only": "list", "links-only": "li
 CV = {"single": "single", "single-cv": "single", "one-cv": "single", "same-cv": "single",
       "specialized": "specialized", "specialised": "specialized", "multi-cv": "specialized", "per-role": "specialized",
       "per-role-cv": "specialized", "tailored": "specialized"}
-SECTIONS = ["location", "profile", "roles", "cv", "sites", "mode", "checklist"]
+SECTIONS = ["terms", "location", "profile", "roles", "cv", "sites", "mode", "checklist"]
 SECTION_ALIAS = {"resume": "profile", "resumes": "profile", "experience": "profile", "cvs": "cv", "platforms": "sites",
                  "city": "location", "country": "location", "apply-mode": "mode", "role": "roles", "targets": "roles",
-                 "cap": "mode", "limit": "mode", "daily-cap": "mode"}
+                 "cap": "mode", "limit": "mode", "daily-cap": "mode", "disclaimer": "terms", "tos": "terms"}
 GROUPS = {"high", "medium", "low", "all"}
 
 
@@ -95,7 +95,7 @@ def available(site, loc):
 
 
 def missing_sections(cfg):
-    miss = []
+    miss = [] if cfg.get("terms_accepted") else ["terms"]
     loc = cfg.get("location") or {}
     if not loc.get("country"):
         miss.append("location")

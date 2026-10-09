@@ -4,6 +4,21 @@ Run only the sections `status` / `resolve` listed. Ask one section at a time, an
 
 Open with two lines: what Rolexa does (finds jobs since the last run, fit-checks them against your resumes, applies only to jobs you pick), and that setup takes about five minutes and is asked once.
 
+## 0. terms (before anything else)
+
+Show this, then wait for a clear yes ("I understand", "yes", "ok"):
+
+> Before we start:
+> - Rolexa isn't affiliated with LinkedIn, Indeed, Bayt or Naukri Gulf.
+> - These sites restrict automated use (LinkedIn's User Agreement forbids bots and scrapers, for example). Searching and applying with Rolexa may break their terms, and a site can restrict your account. Rolexa keeps the risk down (logged-out search, slow pace, a daily limit, stops at any CAPTCHA, never signs in) but can't remove it.
+> - You're responsible for following each site's terms and for every application sent in your name. The full disclaimer is in the README.
+>
+> Reply "I understand" to continue.
+
+- A yes: `rolexa.py set terms_accepted "<today, YYYY-MM-DD>"`, then go on.
+- A no, or a question you can't settle: stop setup. Rolexa doesn't search or apply without it. Answer questions plainly; don't play the risk down.
+- An argument on the first run doesn't count as a yes; ask anyway.
+
 ## 1. location
 
 Ask: **which country, and which city or cities?** ("anywhere in the country" is fine.)
@@ -88,8 +103,8 @@ Ask: **"When you approve jobs from the shortlist, what should I do?"**
 | Mode | What happens |
 |---|---|
 | `list` | I only give you the filtered list with links. You apply yourself. |
-| `assist` | I fill each application and attach the right CV, then stop on the final page. **You click Submit**, tell me, and I move on. |
-| `auto` | I fill and submit each job you approved. I still stop and ask whenever I'm unsure. |
+| `assist` (recommended) | I fill each application and attach the right CV, then stop on the final page. **You click Submit**, tell me, and I move on. |
+| `auto` | I fill and submit each job you approved. I still stop and ask whenever I'm unsure. Fastest, and the most exposed under the sites' terms. |
 
 In every mode you choose the jobs from each shortlist; nothing is applied to without that. Save: `set mode assist`.
 
