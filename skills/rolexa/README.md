@@ -55,6 +55,7 @@ Arguments change one run. Add `save` to make them your new defaults.
 | `/rolexa apply 2,5` | Apply to jobs 2 and 5 from the latest shortlist |
 | `/rolexa apply high` | Apply to every High job from the latest shortlist |
 | `/rolexa indeed list city:sharjah save` | Combine anything; `save` keeps sites, mode and city |
+| `/rolexa setup cap` | Change the daily limit per site (default 8) |
 | `/rolexa setup` | Redo the whole setup |
 | `/rolexa setup cv sites` | Redo only those parts (`location profile roles cv sites mode checklist`) |
 | `/rolexa prefs` | Show your saved preferences |
@@ -65,6 +66,12 @@ Rules for combining them:
 - Conflicts (two modes, `list` with `apply`, a site named and excluded) make Rolexa ask instead of guessing.
 - A site that doesn't cover the chosen country is skipped with a note.
 - `save` stores sites, mode, location and CV strategy only. Role filters, time windows and `apply` are always one-run.
+
+## Daily limit
+
+Rolexa applies to at most **8 jobs per site per day** (LinkedIn, Indeed, Bayt and Naukri Gulf each get 8). Before every application it checks today's count in your log, and once a site reaches its limit, that site's remaining jobs wait for tomorrow. Submissions without a confirmation page count too. Applications you make yourself outside Rolexa don't.
+
+Setup asks whether you want a lower limit; `/rolexa setup cap` changes it later. There's no argument to raise it for one run.
 
 ## What you set up yourself
 

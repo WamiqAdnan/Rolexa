@@ -93,6 +93,8 @@ Ask: **"When you approve jobs from the shortlist, what should I do?"**
 
 In every mode you choose the jobs from each shortlist; nothing is applied to without that. Save: `set mode assist`.
 
+For `assist` and `auto`, then ask about the **daily limit**: "I apply to at most 8 jobs per site per day, so the sites don't flag your account. Want it lower?" Fewer is safer; offer 3, 5 or 8. Save: `set daily_cap 5`. If they want more than 8, say once that a higher pace makes a restriction more likely, and save what they choose. In `list` mode skip the question: the default 8 applies if they apply through Rolexa later. `setup cap` returns here.
+
 ## 7. checklist (what the user must set up, and up to what point)
 
 Show this, cut to their mode and sites, then `set checklist_shown true`:

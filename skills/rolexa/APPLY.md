@@ -6,25 +6,26 @@ Runs only for jobs the user named **in this session**, in their own Chrome via C
 
 1. Read the run's `.tsv` (`resolve` gives `shortlist` for `apply` runs). Turn the selection into rows: numbers, ranges, or `high` / `medium` / `low` / `all` (the groups in the file).
 2. If the selection came from an argument (`/rolexa apply 2,5`) rather than a reply to the shortlist just shown, list the jobs once (number, role, company, CV, who submits) and wait for a "yes".
-3. `python3 $R/scripts/registry.py today`: jobs over a site's daily cap wait for tomorrow. Say which.
+3. `python3 $R/scripts/registry.py today`: if more jobs are approved for a site than it has left today, say which ones wait for tomorrow (the last ones in the order below).
 4. Order: group Indeed, Bayt and Naukri Gulf jobs by CV (see "One saved CV per site"), so each CV is uploaded once.
 
 ## For each job, one at a time
 
-1. Open the job URL in a new tab in the MCP tab group. If the page shows the user already applied ("Applied", "Application submitted"), skip it and note it.
-2. Sign-in page, register page, a company site that needs a new account, a password field, a CAPTCHA or "verify you are human": **stop this job and hand it to the user** with the link. A CAPTCHA or an "unusual activity" / restriction warning stops the **whole run**.
-3. Fill the form step by step, 2–4 s between steps:
+1. **Daily cap:** `python3 $R/scripts/registry.py check <site>`, with the site the job was found on. Exit 1 means that site is done for today: skip its remaining jobs, tell the user, carry on with the other sites. Run it before **every** job, not once per run, so jobs logged meanwhile (by the user in `assist`, or another session) count. Never reorder, re-label or skip logging to get around it.
+2. Open the job URL in a new tab in the MCP tab group. If the page shows the user already applied ("Applied", "Application submitted"), skip it and note it.
+3. Sign-in page, register page, a company site that needs a new account, a password field, a CAPTCHA or "verify you are human": **stop this job and hand it to the user** with the link. A CAPTCHA or an "unusual activity" / restriction warning stops the **whole run**.
+4. Fill the form step by step, 2–4 s between steps:
    - contact fields: check them against `profile.md` "Contact"; fix any that differ,
    - CV: attach the job's CV from the shortlist (see "Uploading a CV"),
    - questions: answer from `profile.md` only. Numeric "years" fields take a bare whole number (years since the skill's start date, rounded down),
    - leave optional extras such as "Mark as top choice" off.
-4. Anything you are not sure of: **"Ask, don't assume"** below. Keep the tab open while waiting.
-5. The review page: check the CV name and every answer against what you meant to send.
-6. Submit, by mode:
+5. Anything you are not sure of: **"Ask, don't assume"** below. Keep the tab open while waiting.
+6. The review page: check the CV name and every answer against what you meant to send.
+7. Submit, by mode:
    - **assist**: don't click Submit. Say: "Job N is filled and on the review page in Chrome: <role> at <company>, CV <file>. Check it and click Submit, then tell me 'done' (or 'skip')." Wait. On "done", look at the page for the confirmation ("Application sent", "Applied") and log status `submitted by user`. If no confirmation shows, say so and log `unconfirmed`. On "skip", log nothing.
    - **auto**: click Submit, wait for the confirmation, log status `applied`. No confirmation → screenshot, tell the user, log `unconfirmed`.
-7. Log: append `site, company, title, location, cv, mode, status, url, notes` (tab-separated) to `$SCRATCH/applied.tsv` and run `registry.py log $SCRATCH/applied.tsv` after each job (it skips URLs already logged).
-8. Close the tab, wait 15–25 s, next job.
+8. Log: append `site, company, title, location, cv, mode, status, url, notes` (tab-separated) to `$SCRATCH/applied.tsv` and run `registry.py log $SCRATCH/applied.tsv` after each job (it skips URLs already logged).
+9. Close the tab, wait 15–25 s, next job.
 
 At the end, add a short outcome table (job, status, CV, answers given) to the run's `.md` file.
 
@@ -84,7 +85,10 @@ These sites keep one CV on the profile and send that one.
 ## Pace and limits
 
 - 2–4 s between form steps, 15–25 s between jobs.
-- Daily cap per site: `daily_cap` in `config.json` (default 8). Counted from `applications.tsv` by site.
+- Daily cap per site: `daily_cap` in `config.json` (default 8), enforced by `registry.py check` before each job.
+  - Counted from today's rows in `applications.tsv` for that site. Every status counts except `handed back`, `skipped`, `already applied` and `not submitted`; `unconfirmed` counts, since a submit without a confirmation page has most likely gone through.
+  - A company-site application counts against the site where the job was found.
+  - Applications the user makes outside Rolexa aren't in the log, so they don't count.
 - Stop the whole run on a CAPTCHA, a human-verification page, or an "unusual activity" or restriction warning, and tell the user.
 
 ## Chrome not connected

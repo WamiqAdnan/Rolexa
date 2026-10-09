@@ -14,6 +14,8 @@
   registry.py log ROWS.tsv             -> appends applications: site, company, title, location, cv, mode, status, url, notes
                                           (date is added; a url already logged is skipped)
   registry.py today                    -> applications logged today, per site, against the daily cap
+  registry.py check SITE               -> exit 0 if SITE is under today's cap, exit 1 if it has reached it.
+                                          Run before every application; exit 1 means no more on that site today
 
 Data home: $ROLEXA_HOME or ~/.rolexa  (seen_jobs.tsv, last_run.tsv, applications.tsv, config.json)
 Sites: linkedin, indeed, bayt, naukrigulf (aliases: li, naukri, ng)
@@ -33,6 +35,10 @@ ALIAS = {"li": "linkedin", "naukri": "naukrigulf", "naukari": "naukrigulf", "ng"
 BUFFER = datetime.timedelta(hours=2)   # widens the search window for indexing lag
 SLACK = datetime.timedelta(hours=12)   # 'posted' text is coarse ("1 day ago"), so only drop clearly older cards
 DEFAULT_GAP = {"linkedin": 72, "indeed": 72, "bayt": 168, "naukrigulf": 168}  # hours, first run of a site
+DEFAULT_CAP = 8
+# Statuses that mean nothing was sent. Every other status counts toward the cap, 'unconfirmed' included:
+# a submit with no confirmation page has most likely gone through.
+NOT_SENT = {"handed back", "skipped", "already applied", "not submitted"}
 
 
 def config():
@@ -221,11 +227,18 @@ def since(sites, mark=True):
     return out
 
 
-def today_counts():
+def daily_cap():
+    try:
+        return max(1, int(config().get("daily_cap", DEFAULT_CAP)))
+    except (TypeError, ValueError):
+        return DEFAULT_CAP
+
+
+def today_counts(rows=None):
     today = datetime.date.today().isoformat()
     counts = {s: 0 for s in SITES}
-    for r in read_dicts(APPS):
-        if r.get("date") == today and r.get("status", "").lower() in ("applied", "submitted by user"):
+    for r in read_dicts(APPS) if rows is None else rows:
+        if r.get("date") == today and r.get("status", "").strip().lower() not in NOT_SENT:
             counts[r.get("site", "")] = counts.get(r.get("site", ""), 0) + 1
     return counts
 
@@ -310,10 +323,23 @@ def main():
             added += 1
         write_dicts(APPS, APPS_HEADER, rows)
         print(f"[registry] logged {added} -> {APPS}", file=sys.stderr)
+        cap = daily_cap()
+        for site, n in today_counts(rows).items():
+            if n > cap:  # logging never drops a record: it was sent, so it is kept, but this should not happen
+                print(f"[registry] WARNING {site} is over today's cap ({n}/{cap}): 'check' was skipped", file=sys.stderr)
     elif cmd == "today":
-        cap = config().get("daily_cap", 8)
+        cap = daily_cap()
         for site, n in today_counts().items():
             print(f"{site}\t{n}/{cap}" + ("\tCAP REACHED" if n >= cap else ""))
+    elif cmd == "check":
+        if len(sys.argv) < 3:
+            sys.exit("check needs one site, e.g. 'check linkedin'")
+        site, cap = parse_sites(sys.argv[2:3])[0], daily_cap()
+        n = today_counts()[site]
+        if n >= cap:
+            print(f"{site}\t{n}/{cap}\tCAP REACHED: no more {site} applications today")
+            sys.exit(1)
+        print(f"{site}\t{n}/{cap}\tok: {cap - n} left today")
     else:
         sys.exit(__doc__)
 

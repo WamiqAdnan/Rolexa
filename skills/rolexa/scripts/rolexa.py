@@ -59,7 +59,8 @@ CV = {"single": "single", "single-cv": "single", "one-cv": "single", "same-cv": 
       "per-role-cv": "specialized", "tailored": "specialized"}
 SECTIONS = ["location", "profile", "roles", "cv", "sites", "mode", "checklist"]
 SECTION_ALIAS = {"resume": "profile", "resumes": "profile", "experience": "profile", "cvs": "cv", "platforms": "sites",
-                 "city": "location", "country": "location", "apply-mode": "mode", "role": "roles", "targets": "roles"}
+                 "city": "location", "country": "location", "apply-mode": "mode", "role": "roles", "targets": "roles",
+                 "cap": "mode", "limit": "mode", "daily-cap": "mode"}
 GROUPS = {"high", "medium", "low", "all"}
 
 
@@ -124,7 +125,7 @@ def summary(cfg):
     where = ", ".join(loc.get("cities") or ["anywhere"]) + f" ({loc.get('country', '?')})"
     roles = ", ".join(r.get("tag", "?") for r in cfg.get("roles") or []) or "?"
     return (f"location {where} · sites {', '.join(cfg.get('sites') or ['?'])} · mode {cfg.get('mode', '?')} · "
-            f"cv {cfg.get('cv_strategy', '?')} · roles {roles} · daily cap {cfg.get('daily_cap', 8)}/site")
+            f"cv {cfg.get('cv_strategy', '?')} · roles {roles} · daily cap {registry.daily_cap()}/site")
 
 
 def numbers(text):
