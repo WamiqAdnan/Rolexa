@@ -3,7 +3,9 @@
 
   registry.py filter CARDS.tsv [--all] -> prints unseen, non-skipped rows (id,title,company,location,posted,url).
                                           Title skips (config title_skip / level_skip) are recorded as 'title-skip';
-                                          the same company+title already seen on another site as 'dup-of:<id>';
+                                          the same company+title already seen on another site as 'dup-of:<id>'
+                                          (except a title of 4 words or fewer first seen 14+ days ago: that
+                                          passes, flagged 'repost? of <id> (<date>, <verdict>)' in column 7);
                                           cards posted before their site's last run are dropped unrecorded
                                           (--all keeps them)
   registry.py record VERDICTS.tsv      -> upserts rows: id, company, title, verdict, note
@@ -86,6 +88,30 @@ def key(company, title):
     c = re.findall(r"[a-z0-9]+", (company or "").lower())[:2]
     t = re.findall(r"[a-z0-9]+", (title or "").lower())
     return " ".join(c) + "|" + " ".join(t)
+
+
+REPOST_DAYS = 14   # a same company + title match older than this may be a new job (see maybe_new_post)
+GENERIC_WORDS = 4  # titles this short ('Software Engineer', 'Senior Backend Engineer') get reused
+
+
+def maybe_new_post(prev, title, today):
+    """True when a same company + title match should pass as a card (flagged), not be dropped as a repost:
+    the earlier one was first seen more than REPOST_DAYS ago and the title is short and generic. Recruiters
+    post unrelated roles under the same 'Software Engineer' title weeks apart."""
+    try:
+        age = (datetime.date.fromisoformat(today) - datetime.date.fromisoformat(prev.get("first_seen", ""))).days
+    except ValueError:
+        return False
+    return age > REPOST_DAYS and len(re.findall(r"[a-z0-9]+", (title or "").lower())) <= GENERIC_WORDS
+
+
+def flag(row, prev):
+    """Note the possible repost in column 7, once: 'repost? of <id> (<date>, <verdict>)'."""
+    note = f"repost? of {prev.get('id', '')} ({prev.get('first_seen', '')}, {prev.get('verdict', '') or 'no verdict'})"
+    row = row + [""] * (7 - len(row))
+    if "repost?" not in row[6]:
+        row[6] = f"{row[6]} · {note}" if row[6] else note
+    return row
 
 
 def now():
@@ -407,8 +433,8 @@ def main():
     cmd, today = sys.argv[1], datetime.date.today().isoformat()
     reg = load()
     if cmd == "filter":
-        out, skipped, seen, xdup, old, dup = [], 0, 0, 0, 0, set()
-        keys = {key(r.get("company"), r.get("title")): r["id"] for r in reg.values() if r.get("verdict") != "title-skip"}
+        out, skipped, seen, xdup, old, dup, maybe = [], 0, 0, 0, 0, set(), 0
+        keys = {key(r.get("company"), r.get("title")): r for r in reg.values() if r.get("verdict") != "title-skip"}
         st, ref, skip = load_state(), now(), skipper()
         for row in read_tsv(sys.argv[2]):
             jid, title = row[0], (row[1] if len(row) > 1 else "")
@@ -422,11 +448,15 @@ def main():
                 old += 1
                 continue
             k = key(company, title)
-            if k in keys and keys[k] != jid:
-                reg[jid] = dict(id=jid, first_seen=today, company=company, title=title, verdict=f"dup-of:{keys[k]}")
-                xdup += 1
-                continue
-            keys[k] = jid
+            prev = keys.get(k)
+            if prev and prev["id"] != jid:
+                if not maybe_new_post(prev, title, today):
+                    reg[jid] = dict(id=jid, first_seen=today, company=company, title=title, verdict=f"dup-of:{prev['id']}")
+                    xdup += 1
+                    continue
+                row = flag(row, prev)
+                maybe += 1
+            keys[k] = dict(id=jid, first_seen=today, verdict="")
             if skip(title):
                 reg[jid] = dict(id=jid, first_seen=today, company=company, title=title, verdict="title-skip")
                 skipped += 1
@@ -434,7 +464,8 @@ def main():
                 out.append("\t".join(row))
         write_dicts(REG, HEADER, reg.values())
         print("\n".join(out))
-        print(f"[registry] new to check: {len(out)} | title-skipped: {skipped} | same job on another site: {xdup} | "
+        print(f"[registry] new to check: {len(out)} (flagged 'repost?': {maybe}) | title-skipped: {skipped} | "
+              f"same job on another site: {xdup} | "
               f"already seen: {seen} | posted before last run: {old}", file=sys.stderr)
     elif cmd == "record":
         n = 0
