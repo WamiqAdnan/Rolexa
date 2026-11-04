@@ -2,7 +2,7 @@
 
 All four sites are searched **logged out**. `rolexa.py plan` builds every URL; this file explains them and what to do when one misbehaves. `collect_cards.js` and `extract_jd.js` detect the site themselves.
 
-Job IDs: LinkedIn is a bare number; the others are `indeed:<jk>`, `bayt:<id>`, `ng:<jid>`. The same company + title on two sites is checked once (`dup-of:<id>`).
+Job IDs: LinkedIn is a bare number; the others are `indeed:<jk>`, `bayt:<id>`, `ng:<jid>`. The same company + title on two sites is checked once (`dup-of:<id>`), except a title of 4 words or fewer whose match is 14+ days old: it comes back flagged `repost?`, since generic titles get reused.
 
 ## Date window: since each site's last run
 
